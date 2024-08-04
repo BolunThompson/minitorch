@@ -1,5 +1,6 @@
+from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Tuple
+from typing import Any, DefaultDict, Iterable, List, Tuple
 
 from typing_extensions import Protocol
 
@@ -23,7 +24,9 @@ def central_difference(f: Any, *vals: Any, arg: int = 0, epsilon: float = 1e-6) 
         An approximation of $f'_i(x_0, \ldots, x_{n-1})$
     """
     # TODO: Implement for Task 1.1.
-    raise NotImplementedError('Need to implement for Task 1.1')
+    f1 = f(*vals[:arg], vals[arg] + epsilon, *vals[arg + 1 :])
+    f2 = f(*vals)
+    return (f1 - f2) / epsilon
 
 
 variable_count = 1
@@ -61,8 +64,19 @@ def topological_sort(variable: Variable) -> Iterable[Variable]:
     Returns:
         Non-constant Variables in topological order starting from the right.
     """
-    # TODO: Implement for Task 1.4.
-    raise NotImplementedError('Need to implement for Task 1.4')
+    var_set = set()
+    vars = []
+    def visit(n: Variable):
+        if n.unique_id in var_set or n.is_constant():
+            return
+        for node in n.parents:
+            visit(node)
+        var_set.add(n.unique_id)
+        vars.append(n)
+
+    visit(variable)
+    yield from vars[::-1]
+    
 
 
 def backpropagate(variable: Variable, deriv: Any) -> None:
@@ -76,8 +90,20 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
 
     No return. Should write to its results to the derivative values of each leaf through `accumulate_derivative`.
     """
-    # TODO: Implement for Task 1.4.
-    raise NotImplementedError('Need to implement for Task 1.4')
+    # var id to its right vars
+    right_derivs = defaultdict(float)
+    right_derivs[variable.unique_id] = deriv
+    # Should I really be yielding variable?
+    # Yes, this assumes that deriv isn't actually the deriv of variable, but
+    # a value to propagate. And, glancing at the code, that's the assumption. Ok, weird code.
+    for var in topological_sort(variable):
+        deriv = right_derivs[var.unique_id]
+        if var.is_leaf():
+            var.accumulate_derivative(deriv)
+        else:
+            var_derivs = var.chain_rule(deriv)
+            for (_, dv), vp in zip(var_derivs, var.parents):
+                right_derivs[vp.unique_id] += dv
 
 
 @dataclass

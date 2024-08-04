@@ -11,17 +11,18 @@ from .tensor_data import (
     broadcast_index,
     index_to_position,
     shape_broadcast,
+    strides_from_shape,
     to_index,
 )
 
 if TYPE_CHECKING:
     from .tensor import Tensor
-    from .tensor_data import Index, Shape, Storage, Strides
+    from .tensor_data import Index, UserShape, Shape, Storage, Strides
+    from typing import Iterator
 
 
 class MapProto(Protocol):
-    def __call__(self, x: Tensor, out: Optional[Tensor] = ..., /) -> Tensor:
-        ...
+    def __call__(self, x: Tensor, out: Optional[Tensor] = ..., /) -> Tensor: ...
 
 
 class TensorOps:
@@ -136,7 +137,7 @@ class SimpleOps(TensorOps):
 
     @staticmethod
     def zip(
-        fn: Callable[[float, float], float]
+        fn: Callable[[float, float], float],
     ) -> Callable[["Tensor", "Tensor"], "Tensor"]:
         """
         Higher-order tensor zip function ::
@@ -231,10 +232,10 @@ class SimpleOps(TensorOps):
 
 
 def tensor_map(
-    fn: Callable[[float], float]
+    fn: Callable[[float], float],
 ) -> Callable[[Storage, Shape, Strides, Storage, Shape, Strides], None]:
     """
-    Low-level implementation of tensor map between
+     I can try to watch Low-level implementation of tensor map between
     tensors with *possibly different strides*.
 
     Simple version:
@@ -264,14 +265,17 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError('Need to implement for Task 2.3')
+        in_index = np.empty_like(in_shape)
+        for o_index in shape_iter(out_shape):
+            broadcast_index(o_index, out_shape, in_shape, in_index)
+            iv = in_storage[index_to_position(in_index, in_strides)]
+            out[index_to_position(o_index, out_strides)] = fn(iv)
 
     return _map
 
 
 def tensor_zip(
-    fn: Callable[[float, float], float]
+    fn: Callable[[float, float], float],
 ) -> Callable[
     [Storage, Shape, Strides, Storage, Shape, Strides, Storage, Shape, Strides], None
 ]:
@@ -309,14 +313,20 @@ def tensor_zip(
         b_shape: Shape,
         b_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError('Need to implement for Task 2.3')
+        a_index = np.empty_like(a_shape)
+        b_index = np.empty_like(b_shape)
+        for o_index in shape_iter(out_shape):
+            broadcast_index(o_index, out_shape, a_shape, a_index)
+            broadcast_index(o_index, out_shape, b_shape, b_index)
+            av = a_storage[index_to_position(a_index, a_strides)]
+            bv = b_storage[index_to_position(b_index, b_strides)]
+            out[index_to_position(o_index, out_strides)] = fn(av, bv)
 
     return _zip
 
 
 def tensor_reduce(
-    fn: Callable[[float, float], float]
+    fn: Callable[[float, float], float],
 ) -> Callable[[Storage, Shape, Strides, Storage, Shape, Strides, int], None]:
     """
     Low-level implementation of tensor reduce.
@@ -340,10 +350,29 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
-        # TODO: Implement for Task 2.3.
-        raise NotImplementedError('Need to implement for Task 2.3')
+        for o_index in shape_iter(out_shape):
+            op = index_to_position(o_index, out_strides)
+            for i in range(a_shape[reduce_dim]):
+                a_index = o_index.copy()
+                a_index[reduce_dim] = i
+                out[op] = fn(
+                    out[op],
+                    a_storage[index_to_position(a_index, a_strides)],
+                )
 
     return _reduce
+
+
+# functionally equivalent to to_index but conceptually easier for me to work with
+def shape_iter(shape: Shape) -> Iterator[Shape]:
+    if not shape.size:
+        return
+    for i in range(shape[0]):
+        if shape.size == 1:
+            yield np.array([i])
+        else:
+            for sub_shape in shape_iter(shape[1:]):
+                yield np.array((i, *sub_shape))
 
 
 SimpleBackend = TensorBackend(SimpleOps)

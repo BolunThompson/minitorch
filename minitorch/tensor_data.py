@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections import deque
+import math
 import random
 from typing import Iterable, Optional, Sequence, Tuple, Union
 
@@ -43,8 +45,10 @@ def index_to_position(index: Index, strides: Strides) -> int:
         Position in storage
     """
 
-    # TODO: Implement for Task 2.1.
-    raise NotImplementedError('Need to implement for Task 2.1')
+    ind = 0
+    for i, v in enumerate(index):
+        ind += int(v * strides[i])
+    return ind
 
 
 def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
@@ -60,8 +64,9 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
         out_index : return index corresponding to position.
 
     """
-    # TODO: Implement for Task 2.1.
-    raise NotImplementedError('Need to implement for Task 2.1')
+    for i in range(out_index.size):
+        out_index[i] = ordinal // math.prod(shape[i + 1 :])
+        ordinal %= math.prod(shape[i + 1 :])
 
 
 def broadcast_index(
@@ -83,9 +88,9 @@ def broadcast_index(
     Returns:
         None
     """
-    # TODO: Implement for Task 2.2.
-    raise NotImplementedError('Need to implement for Task 2.2')
-
+    trunc_ind = big_index[len(big_index) - len(shape) :]
+    for i in range(len(out_index)):
+        out_index[i] = min(trunc_ind[i], shape[i] - 1)
 
 def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     """
@@ -101,9 +106,16 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     Raises:
         IndexingError : if cannot broadcast
     """
-    # TODO: Implement for Task 2.2.
-    raise NotImplementedError('Need to implement for Task 2.2')
-
+    short, long = (shape1, shape2) if len(shape1) < len(shape2) else (shape2, shape1)
+    ext_short = [1] * (len(long) - len(short)) + list(short)
+    for i, (sv, lv) in enumerate(zip(ext_short, long)):
+        if sv == 1:
+            ext_short[i] = lv
+        elif sv != lv and lv != 1:
+            breakpoint()
+            raise IndexingError
+        # else they're equal and above 1
+    return tuple(ext_short)
 
 def strides_from_shape(shape: UserShape) -> UserStrides:
     layout = [1]
@@ -140,6 +152,9 @@ class TensorData:
         assert isinstance(shape, tuple), "Shape must be tuple"
         if len(strides) != len(shape):
             raise IndexingError(f"Len of strides {strides} must match {shape}.")
+        # hack to convert np types to python types
+        shape = tuple(v.item() if hasattr(v, "item") else v for v in shape)
+
         self._strides = array(strides)
         self._shape = array(shape)
         self.strides = strides
@@ -226,9 +241,11 @@ class TensorData:
         assert list(sorted(order)) == list(
             range(len(self.shape))
         ), f"Must give a position to each dimension. Shape: {self.shape} Order: {order}"
-
-        # TODO: Implement for Task 2.1.
-        raise NotImplementedError('Need to implement for Task 2.1')
+        return type(self)(
+            self._storage,
+            tuple(self._shape[i] for i in order),
+            tuple(self._strides[i] for i in order),
+        )
 
     def to_string(self) -> str:
         s = ""

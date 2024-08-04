@@ -53,6 +53,7 @@ def test_chain_rule1() -> None:
 def test_chain_rule2() -> None:
     var = minitorch.Scalar(0.0, ScalarHistory())
     constant = minitorch.Scalar(
+        # mathematically impossible but fine, it shouldn't matter
         0.0, ScalarHistory(Function1, ctx=Context(), inputs=[var, var])
     )
     back = constant.chain_rule(d_output=5)

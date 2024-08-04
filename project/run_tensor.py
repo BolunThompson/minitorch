@@ -97,7 +97,8 @@ class TensorTrain:
 
 if __name__ == "__main__":
     PTS = 50
-    HIDDEN = 2
+    HIDDEN = 10
     RATE = 0.5
-    data = minitorch.datasets["Simple"](PTS)
+    import sys
+    data = minitorch.datasets[sys.argv[1]](PTS)
     TensorTrain(HIDDEN).train(data, RATE)

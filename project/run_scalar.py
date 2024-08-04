@@ -90,12 +90,12 @@ class ScalarTrain:
 
                 if y == 1:
                     prob = out
-                    correct += 1 if out.data > 0.5 else 0
+                    correct += 1 if out.data > 0.5 else 0 # why is the limit at .5?
                 else:
-                    prob = -out + 1.0
+                    prob = -out + 1.0 # the complement
                     correct += 1 if out.data < 0.5 else 0
                 loss = -prob.log()
-                (loss / data.N).backward()
+                (loss / data.N).backward() # why is this over N?
                 total_loss += loss.data
 
             losses.append(total_loss)
@@ -110,7 +110,8 @@ class ScalarTrain:
 
 if __name__ == "__main__":
     PTS = 50
-    HIDDEN = 2
+    HIDDEN = 10
     RATE = 0.5
-    data = minitorch.datasets["Simple"](PTS)
+    import sys
+    data = minitorch.datasets[sys.argv[1]](PTS)
     ScalarTrain(HIDDEN).train(data, RATE)

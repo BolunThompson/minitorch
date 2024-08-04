@@ -159,8 +159,17 @@ def tensor_map(
         in_shape: Shape,
         in_strides: Strides,
     ) -> None:
-        # TODO: Implement for Task 3.1.
-        raise NotImplementedError('Need to implement for Task 3.1')
+        in_index = np.empty_like(out_shape)
+        out_index = np.empty_like(out_shape)
+        if out_strides == in_strides:
+            for i in prange(out.size):
+                out[i] = fn(in_storage[i])
+        else:
+            for i in prange(out.size):
+                to_index(i, out_shape, out_index) # type: ignore
+                broadcast_index(out_index, out_shape, in_shape, in_index) # type: ignore
+                in_pos = index_to_position(in_index, in_strides) # type: ignore
+                out[i] = fn(in_storage[in_pos]) # type: ignore
 
     return njit(parallel=True)(_map)  # type: ignore
 
