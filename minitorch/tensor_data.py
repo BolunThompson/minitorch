@@ -11,13 +11,15 @@ import numpy.typing as npt
 from numpy import array, float64
 from typing_extensions import TypeAlias
 
-from .operators import prod
+# needed for some weird * imports
+from .operators import prod # noqa: F401
 
 MAX_DIMS = 32
 
 
 class IndexingError(RuntimeError):
     "Exception raised for indexing errors."
+
     pass
 
 
@@ -64,9 +66,10 @@ def to_index(ordinal: int, shape: Shape, out_index: OutIndex) -> None:
         out_index : return index corresponding to position.
 
     """
+    _ordinal = int(ordinal) # to force a copy to prevent modifying a loop index
     for i in range(out_index.size):
-        out_index[i] = ordinal // math.prod(shape[i + 1 :])
-        ordinal %= math.prod(shape[i + 1 :])
+        out_index[i] = _ordinal // shape[i + 1 :].prod()
+        _ordinal %= shape[i + 1 :].prod()
 
 
 def broadcast_index(
@@ -88,9 +91,12 @@ def broadcast_index(
     Returns:
         None
     """
+    # assert shape.size == out_index.size
+    # assert big_index.size == big_shape.size
     trunc_ind = big_index[len(big_index) - len(shape) :]
     for i in range(len(out_index)):
         out_index[i] = min(trunc_ind[i], shape[i] - 1)
+
 
 def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
     """
@@ -112,10 +118,10 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
         if sv == 1:
             ext_short[i] = lv
         elif sv != lv and lv != 1:
-            breakpoint()
             raise IndexingError
         # else they're equal and above 1
     return tuple(ext_short)
+
 
 def strides_from_shape(shape: UserShape) -> UserStrides:
     layout = [1]
@@ -159,7 +165,10 @@ class TensorData:
         self._shape = array(shape)
         self.strides = strides
         self.dims = len(strides)
-        self.size = int(prod(shape))
+        size = 1
+        for v in shape:
+            size *= v
+        self.size = size
         self.shape = shape
         assert len(self._storage) == self.size
 

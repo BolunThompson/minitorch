@@ -46,7 +46,22 @@ class TensorOps:
 
     @staticmethod
     def matrix_multiply(a: Tensor, b: Tensor) -> Tensor:
-        raise NotImplementedError("Not implemented in this assignment")
+        shape = (a.shape[-2], b.shape[-1])
+        out = a.make(
+            np.empty(shape),
+            shape,
+            strides_from_shape(shape),
+            a.backend,
+        )
+        out_index = np.empty_like(out.shape)
+        for i in range(out.size):
+            to_index(i, out._tensor._shape, out_index)
+            # could do batched matmul, but won't unless I have to
+            a_index = (0,) * (len(a.shape) - 2) + out_index[0]
+            b_index = (0,) * (len(b.shape) - 2) + out_index[1]
+            out[tuple(out_index)] = a[a_index] * b[b_index]
+        return out
+
 
     cuda = False
 
